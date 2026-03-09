@@ -1,0 +1,99 @@
+{
+  "tools": [
+    {
+      "name": "get_tasks",
+      "description": "Returns the full list of tasks with their IDs, text, and completion status. Use this to inspect current state before making changes.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "add_task",
+      "description": "Creates a new task with the given text. The task starts as active (not completed). Returns the created task.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "The text description of the task to create."
+          }
+        },
+        "required": ["text"]
+      }
+    },
+    {
+      "name": "update_task_status",
+      "description": "Marks a specific task as complete or pending by its ID. Use get_tasks first to find the correct ID.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "description": "The unique ID of the task to update."
+          },
+          "completed": {
+            "type": "boolean",
+            "description": "Set to true to mark the task as completed, or false to mark it as pending/active."
+          }
+        },
+        "required": ["id", "completed"]
+      }
+    },
+    {
+      "name": "edit_task_text",
+      "description": "Modifies the text content of an existing task by its ID. Use get_tasks first to find the correct ID.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "description": "The unique ID of the task to edit."
+          },
+          "new_text": {
+            "type": "string",
+            "description": "The new text content for the task."
+          }
+        },
+        "required": ["id", "new_text"]
+      }
+    },
+    {
+      "name": "delete_task",
+      "description": "Permanently removes a task by its ID. This cannot be undone. Use get_tasks first to find the correct ID.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number",
+            "description": "The unique ID of the task to delete."
+          }
+        },
+        "required": ["id"]
+      }
+    },
+    {
+      "name": "clear_completed_tasks",
+      "description": "Removes all tasks that are currently marked as completed. Returns the list of removed tasks.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "set_ui_filter",
+      "description": "Changes the current view filter to show \"all\", \"active\", or \"completed\" tasks.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "filter": {
+            "type": "string",
+            "enum": ["all", "active", "completed"],
+            "description": "The filter to apply: \"all\" shows every task, \"active\" shows only pending tasks, \"completed\" shows only finished tasks."
+          }
+        },
+        "required": ["filter"]
+      }
+    }
+  ]
+}

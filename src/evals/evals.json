@@ -1,0 +1,137 @@
+[
+  {
+    "messages": [
+      { "role": "user", "type": "message", "content": "What tasks do I have right now?" }
+    ],
+    "expectedCall": [
+      { "functionName": "get_tasks", "arguments": {} }
+    ]
+  },
+  {
+    "messages": [
+      { "role": "user", "type": "message", "content": "Add a task to buy groceries" }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "add_task",
+        "arguments": { "text": { "$contains": "groceries" } }
+      }
+    ]
+  },
+  {
+    "messages": [
+      { "role": "user", "type": "message", "content": "Create a task: Schedule dentist appointment" }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "add_task",
+        "arguments": { "text": { "$contains": "dentist" } }
+      }
+    ]
+  },
+  {
+    "messages": [
+      { "role": "user", "type": "message", "content": "Mark task 3 as done" }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "update_task_status",
+        "arguments": { "id": 3, "completed": true }
+      }
+    ]
+  },
+  {
+    "messages": [
+      { "role": "user", "type": "message", "content": "Set task 5 back to pending" }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "update_task_status",
+        "arguments": { "id": 5, "completed": false }
+      }
+    ]
+  },
+  {
+    "messages": [
+      { "role": "user", "type": "message", "content": "Change task 2 to say 'Buy organic milk'" }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "edit_task_text",
+        "arguments": { "id": 2, "new_text": { "$contains": "organic milk" } }
+      }
+    ]
+  },
+  {
+    "messages": [
+      { "role": "user", "type": "message", "content": "Remove task number 4" }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "delete_task",
+        "arguments": { "id": 4 }
+      }
+    ]
+  },
+  {
+    "messages": [
+      { "role": "user", "type": "message", "content": "Clear all the finished tasks" }
+    ],
+    "expectedCall": [
+      { "functionName": "clear_completed_tasks", "arguments": {} }
+    ]
+  },
+  {
+    "messages": [
+      { "role": "user", "type": "message", "content": "Show me only the active tasks" }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "set_ui_filter",
+        "arguments": { "filter": "active" }
+      }
+    ]
+  },
+  {
+    "messages": [
+      { "role": "user", "type": "message", "content": "Show completed tasks only" }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "set_ui_filter",
+        "arguments": { "filter": "completed" }
+      }
+    ]
+  },
+  {
+    "messages": [
+      { "role": "user", "type": "message", "content": "Show me everything" }
+    ],
+    "expectedCall": [
+      {
+        "functionName": "set_ui_filter",
+        "arguments": { "filter": "all" }
+      }
+    ]
+  },
+  {
+    "messages": [
+      { "role": "user", "type": "message", "content": "Add three tasks: walk the dog, do laundry, and cook dinner" }
+    ],
+    "expectedCall": [
+      {
+        "unordered": [
+          { "functionName": "add_task", "arguments": { "text": { "$contains": "dog" } } },
+          { "functionName": "add_task", "arguments": { "text": { "$contains": "laundry" } } },
+          { "functionName": "add_task", "arguments": { "text": { "$contains": "dinner" } } }
+        ]
+      }
+    ]
+  },
+  {
+    "messages": [
+      { "role": "user", "type": "message", "content": "What's the weather like today?" }
+    ],
+    "expectedCall": null
+  }
+]

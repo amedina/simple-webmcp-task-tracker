@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Task Tracker — WebMCP Tool Tests</title>
+  <style>
+    body { font-family: monospace; max-width: 800px; margin: 2rem auto; padding: 0 1rem; background: #fafafa; }
+    h1 { font-size: 1.3rem; margin-bottom: 1rem; }
+    #run-btn { padding: 0.5rem 1.2rem; font-size: 0.95rem; font-weight: 600; border: none; border-radius: 6px; background: #4361ee; color: #fff; cursor: pointer; margin-bottom: 1rem; }
+    #run-btn:hover { background: #3a56d4; }
+    #run-btn:disabled { background: #aaa; cursor: default; }
+    .result { padding: 0.4rem 0.6rem; margin: 0.2rem 0; border-radius: 4px; font-size: 0.85rem; }
+    .pass { background: #d4edda; color: #155724; }
+    .fail { background: #f8d7da; color: #721c24; }
+    .summary { margin-top: 1rem; font-weight: bold; font-size: 1rem; padding: 0.6rem; border-radius: 6px; }
+    .summary.all-pass { background: #d4edda; color: #155724; }
+    .summary.has-fail { background: #f8d7da; color: #721c24; }
+  </style>
+</head>
+<body>
+  <h1>WebMCP Tool Tests</h1>
+  <button id="run-btn">Run Tests</button>
+  <div id="results"></div>
+
+  <!-- Hidden DOM elements required by script.js -->
+  <div style="display:none;">
+    <input type="text" id="task-input" />
+    <button id="add-btn">Add</button>
+    <ul id="task-list"></ul>
+    <span id="task-count"></span>
+    <button id="clear-completed-btn">Clear Completed</button>
+    <button class="filter-btn active" data-filter="all">All</button>
+    <button class="filter-btn" data-filter="active">Active</button>
+    <button class="filter-btn" data-filter="completed">Completed</button>
+    <div id="toast-container"></div>
+  </div>
+
+  <script src="script.js"></script>
+  <script>
+    const resultsEl = document.getElementById("results");
+    const runBtn = document.getElementById("run-btn");
+
+    let passed = 0;
+    let failed = 0;
+
+    function assert(condition, testName) {
+      const div = document.createElement("div");
+      if (condition) {
+        div.className = "result pass";
+        div.textContent = `PASS: ${testName}`;
+        passed++;
+      } else {
+        div.className = "result fail";
+        div.textContent = `FAIL: ${testName}`;
+        failed++;
+      }
+      resultsEl.appendChild(div);
+    }
+
+    function parseResult(resultStr) {
+      return JSON.parse(resultStr);
+    }
+
+    function resetState() {
+      tasks.length = 0;
+      nextId = 1;
+      currentFilter = "all";
+      document.querySelectorAll(".filter-btn").forEach(btn => {
+        btn.classList.toggle("active", btn.dataset.filter === "all");
+      });
+      render();
+    }
+
+    // ========== Test suites ==========
+
+    function testGetTasks() {
+      resetState();
+
+      let result = parseResult(
+        (() => {
+          if (tasks.length === 0) {
+            return JSON.stringify({ success: true, message: "No tasks exist yet.", new_state: { tasks: [], current_filter: currentFilter } });
+          }
+          return JSON.stringify({ success: true, message: `Found ${tasks.length} task(s).`, new_state: { tasks: tasks, current_filter: currentFilter } });
+        })()
+      );
+      assert(result.success === true, "get_tasks: success is true on empty list");
+      assert(result.new_state.tasks.length === 0, "get_tasks: returns empty array when no tasks");
+
+      addTask("Task A");
+      addTask("Task B");
+      result = parseResult(
+        JSON.stringify({ success: true, message: `Found ${tasks.length} task(s).`, new_state: { tasks: tasks, current_filter: currentFilter } })
+      );
+      assert(result.new_state.tasks.length === 2, "get_tasks: returns 2 tasks after adding two");
+      assert(result.new_state.tasks[0].text === "Task A", "get_tasks: first task text is correct");
+      assert(result.new_state.current_filter === "all", "get_tasks: reports current filter");
+    }
+
+    function testAddTask() {
+      resetState();
+
+      const task = addTask("Buy milk");
+      assert(task.text === "Buy milk", "add_task: creates task with correct text");
+      assert(task.completed === false, "add_task: new task starts as active");
+      assert(task.id === 1, "add_task: first task gets ID 1");
+      assert(tasks.length === 1, "add_task: tasks array has 1 item");
+
+      const task2 = addTask("Walk the dog");
+      assert(task2.id === 2, "add_task: second task gets ID 2");
+      assert(tasks.length === 2, "add_task: tasks array has 2 items");
+
+      const items = document.querySelectorAll("#task-list .task-item");
+      assert(items.length === 2, "add_task: DOM shows 2 task items");
+
+      const emptyResult = (() => {
+        const text = "";
+        if (!text || !text.trim()) {
+          return JSON.stringify({ success: false, error: "Task text cannot be empty." });
+        }
+      })();
+      const emptyParsed = parseResult(emptyResult);
+      assert(emptyParsed.success === false, "add_task: rejects empty text");
+    }
+
+    function testUpdateTaskStatus() {
+      resetState();
+
+      addTask("Test task");
+
+      const updated = setTaskStatus(1, true);
+      assert(updated !== null, "update_task_status: finds task by ID");
+      assert(updated.completed === true, "update_task_status: marks task as completed");
+
+      const reactivated = setTaskStatus(1, false);
+      assert(reactivated.completed === false, "update_task_status: marks task back to active");
+
+      const invalid = setTaskStatus(999, true);
+      assert(invalid === null, "update_task_status: returns null for invalid ID");
+
+      setTaskStatus(1, true);
+      const item = document.querySelector("#task-list .task-item");
+      assert(item.classList.contains("completed"), "update_task_status: DOM reflects completed state");
+    }
+
+    function testEditTaskText() {
+      resetState();
+
+      addTask("Original text");
+
+      const edited = editTask(1, "Updated text");
+      assert(edited !== null, "edit_task_text: finds task by ID");
+      assert(edited.text === "Updated text", "edit_task_text: updates text correctly");
+
+      const invalid = editTask(999, "Nope");
+      assert(invalid === null, "edit_task_text: returns null for invalid ID");
+
+      const textEl = document.querySelector("#task-list .task-text");
+      assert(textEl.textContent === "Updated text", "edit_task_text: DOM reflects updated text");
+
+      const trimmed = editTask(1, "  Trimmed text  ");
+      assert(trimmed.text === "Trimmed text", "edit_task_text: trims whitespace");
+    }
+
+    function testDeleteTask() {
+      resetState();
+
+      addTask("Task to keep");
+      addTask("Task to delete");
+
+      const removed = deleteTask(2);
+      assert(removed !== null, "delete_task: finds and removes task");
+      assert(removed.text === "Task to delete", "delete_task: returns removed task");
+      assert(tasks.length === 1, "delete_task: tasks array shrinks by 1");
+
+      const invalid = deleteTask(999);
+      assert(invalid === null, "delete_task: returns null for invalid ID");
+
+      const items = document.querySelectorAll("#task-list .task-item");
+      assert(items.length === 1, "delete_task: DOM reflects remaining task count");
+    }
+
+    function testClearCompleted() {
+      resetState();
+
+      addTask("Active task");
+      addTask("Done task 1");
+      addTask("Done task 2");
+      setTaskStatus(2, true);
+      setTaskStatus(3, true);
+
+      const cleared = clearCompleted();
+      assert(cleared.length === 2, "clear_completed: removes 2 completed tasks");
+      assert(tasks.length === 1, "clear_completed: leaves 1 active task");
+      assert(tasks[0].text === "Active task", "clear_completed: remaining task is the active one");
+
+      const clearedAgain = clearCompleted();
+      assert(clearedAgain.length === 0, "clear_completed: returns empty when no completed tasks");
+    }
+
+    function testSetFilter() {
+      resetState();
+
+      addTask("Active 1");
+      addTask("Active 2");
+      addTask("Done 1");
+      setTaskStatus(3, true);
+
+      setFilter("active");
+      assert(currentFilter === "active", "set_ui_filter: sets filter to active");
+      let visible = getVisibleTasks();
+      assert(visible.length === 2, "set_ui_filter: shows only 2 active tasks");
+
+      setFilter("completed");
+      assert(currentFilter === "completed", "set_ui_filter: sets filter to completed");
+      visible = getVisibleTasks();
+      assert(visible.length === 1, "set_ui_filter: shows only 1 completed task");
+
+      setFilter("all");
+      visible = getVisibleTasks();
+      assert(visible.length === 3, "set_ui_filter: shows all 3 tasks");
+
+      const activeBtn = document.querySelector('.filter-btn[data-filter="all"]');
+      assert(activeBtn.classList.contains("active"), "set_ui_filter: DOM highlights active filter button");
+    }
+
+    function testFullWorkflow() {
+      resetState();
+
+      addTask("Buy groceries");
+      addTask("Clean house");
+      addTask("Write report");
+
+      setTaskStatus(2, true);
+      editTask(1, "Buy organic groceries");
+      deleteTask(3);
+
+      assert(tasks.length === 2, "workflow: 2 tasks remain after add/delete");
+      assert(tasks[0].text === "Buy organic groceries", "workflow: edited task has new text");
+      assert(tasks[1].completed === true, "workflow: completed task stays completed");
+
+      setFilter("active");
+      let visible = getVisibleTasks();
+      assert(visible.length === 1, "workflow: active filter shows 1 task");
+
+      setFilter("all");
+      clearCompleted();
+      assert(tasks.length === 1, "workflow: clear completed leaves 1 task");
+      assert(tasks[0].text === "Buy organic groceries", "workflow: correct task remains");
+    }
+
+    function testReturnFormats() {
+      resetState();
+
+      const addResult = (() => {
+        const text = "Format test";
+        const task = addTask(text);
+        return JSON.stringify({
+          success: true,
+          message: `Added task: "${task.text}" (ID: ${task.id}).`,
+          new_state: { created_task: task, total_tasks: tasks.length },
+        });
+      })();
+      const addParsed = parseResult(addResult);
+      assert(addParsed.success === true, "return format: add_task has success field");
+      assert(typeof addParsed.message === "string", "return format: add_task has message field");
+      assert(addParsed.new_state !== undefined, "return format: add_task has new_state field");
+      assert(addParsed.new_state.created_task.id > 0, "return format: new_state includes created task with ID");
+
+      const errorResult = JSON.stringify({
+        success: false,
+        error: "No task found with ID 999. Use get_tasks to see available tasks.",
+      });
+      const errorParsed = parseResult(errorResult);
+      assert(errorParsed.success === false, "return format: error has success=false");
+      assert(typeof errorParsed.error === "string", "return format: error has error string");
+    }
+
+    // ========== Run all tests on button click ==========
+
+    function runAllTests() {
+      passed = 0;
+      failed = 0;
+      resultsEl.innerHTML = "";
+
+      testGetTasks();
+      testAddTask();
+      testUpdateTaskStatus();
+      testEditTaskText();
+      testDeleteTask();
+      testClearCompleted();
+      testSetFilter();
+      testFullWorkflow();
+      testReturnFormats();
+
+      const summary = document.createElement("div");
+      summary.className = "summary " + (failed === 0 ? "all-pass" : "has-fail");
+      summary.textContent = `${passed + failed} tests: ${passed} passed, ${failed} failed`;
+      resultsEl.appendChild(summary);
+
+      // Clean up state after tests
+      resetState();
+    }
+
+    runBtn.addEventListener("click", runAllTests);
+  </script>
+</body>
+</html>
